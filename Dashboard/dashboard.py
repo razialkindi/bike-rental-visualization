@@ -13,7 +13,7 @@ st.set_page_config(page_title='🚴♂ Bike Sharing Dashboard', layout='wide')
 # =======================
 @st.cache_data
 def load_data():
-    main_data = pd.read_csv('Dashboard/main_data.csv')
+    main_data = pd.read_csv('dashboard/main_data.csv')
     return main_data
 
 main_data = load_data()
