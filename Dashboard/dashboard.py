@@ -15,7 +15,7 @@ st.set_page_config(
 
 # Load data
 def load_data():
-    data = pd.read_csv('./submission/Dashboard/main_data.csv')
+    data = pd.read_csv('./bike-rental-visualization/Dashboard/main_data.csv')
     # Convert date to datetime
     data['dteday'] = pd.to_datetime(data['dteday'])
     return data
