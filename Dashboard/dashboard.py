@@ -7,7 +7,7 @@ import streamlit as st
 # ===================== #
 @st.cache_data
 def load_data():
-    df = pd.read_csv('dashboard/main_data.csv')
+    df = pd.read_csv('Dashboard/main_data.csv')
     
     # Mapping kolom
     season_mapping = {1: 'Musim Semi', 2: 'Musim Panas', 3: 'Musim Gugur', 4: 'Musim Dingin'}
