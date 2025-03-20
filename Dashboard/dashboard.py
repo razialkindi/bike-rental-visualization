@@ -1,174 +1,188 @@
-import streamlit as st
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly.express as px
+import streamlit as st
 
-# =======================
-# CONFIG
-# =======================
-st.set_page_config(page_title='🚴♂ Bike Sharing Dashboard', layout='wide')
-
-# =======================
-# LOAD DATA
-# =======================
+# ===================== #
+# 🚴 DATA LOADING 🚴
+# ===================== #
 @st.cache_data
 def load_data():
-    main_data = pd.read_csv('Dashboard/main_data.csv')
-    return main_data
+    df = pd.read_csv('dashboard/main_data.csv')
+    
+    # Mapping kolom
+    season_mapping = {1: 'Musim Semi', 2: 'Musim Panas', 3: 'Musim Gugur', 4: 'Musim Dingin'}
+    weather_mapping = {1: 'Cerah/Berawan', 2: 'Berkabut/Berawan', 3: 'Gerimis/Sedang', 4: 'Hujan Deras/Badai'}
+    day_mapping = {0: "Minggu", 1: "Senin", 2: "Selasa", 3: "Rabu", 4: "Kamis", 5: "Jumat", 6: "Sabtu"}
 
-main_data = load_data()
+    # Terapkan mapping
+    df['season'] = df['season'].map(season_mapping)
+    df['weathersit'] = df['weathersit'].map(weather_mapping)
+    df['weekday'] = df['weekday'].map(day_mapping)
 
-# =======================
-# SIDEBAR - FILTERS
-# =======================
-st.sidebar.header("Filter Data")
+    # Kolom tambahan
+    df['month'] = pd.to_datetime(df['dteday']).dt.month
+    df['rush_hour'] = df['hr'].apply(lambda x: 'Sibuk' if 7 <= x <= 19 else 'Sepi')
+    df['workingday_label'] = df['workingday'].replace({0: 'Akhir Pekan', 1: 'Hari Kerja'})
 
-# Filter Year
-year_options = main_data['yr'].map({0: '2011', 1: '2012'}).unique()
-selected_year = st.sidebar.multiselect("Pilih Tahun", options=year_options, default=year_options)
+    return df
 
-# Filter Season
-season_options = main_data['season'].map({1: 'Spring', 2: 'Summer', 3: 'Fall', 4: 'Winter'}).unique()
-selected_season = st.sidebar.multiselect("Pilih Musim", options=season_options, default=season_options)
+# Load data
+main_df = load_data()
 
-# Filter Weather
-weather_options = main_data['weathersit'].map({1: 'Cerah', 2: 'Berawan', 3: 'Hujan'}).unique()
-selected_weather = st.sidebar.multiselect("Pilih Cuaca", options=weather_options, default=weather_options)
+# ===================== #
+# SIDEBAR
+# ===================== #
+st.sidebar.title("Filter Data 🚴")
+season_filter = st.sidebar.multiselect(
+    "Pilih Musim:",
+    options=main_df['season'].unique(),
+    default=main_df['season'].unique()
+)
 
-# Filter Workingday
-workingday_options = ['Bekerja', 'Libur']
-selected_workingday = st.sidebar.multiselect("Hari Kerja/Libur", options=workingday_options, default=workingday_options)
+weather_filter = st.sidebar.multiselect(
+    "Pilih Cuaca:",
+    options=main_df['weathersit'].unique(),
+    default=main_df['weathersit'].unique()
+)
 
-# Mapping filter back to data
-main_data['yr_label'] = main_data['yr'].map({0: '2011', 1: '2012'})
-main_data['season_label'] = main_data['season'].map({1: 'Spring', 2: 'Summer', 3: 'Fall', 4: 'Winter'})
-main_data['weathersit_label'] = main_data['weathersit'].map({1: 'Cerah', 2: 'Berawan', 3: 'Hujan'})
-main_data['workingday_label'] = main_data['workingday'].map({1: 'Bekerja', 0: 'Libur'})
+day_filter = st.sidebar.multiselect(
+    "Pilih Hari:",
+    options=main_df['weekday'].unique(),
+    default=main_df['weekday'].unique()
+)
 
-# Apply filters
-filtered_data = main_data[
-    (main_data['yr_label'].isin(selected_year)) &
-    (main_data['season_label'].isin(selected_season)) &
-    (main_data['weathersit_label'].isin(selected_weather)) &
-    (main_data['workingday_label'].isin(selected_workingday))
+time_filter = st.sidebar.multiselect(
+    "Pilih Jam:",
+    options=sorted(main_df['hr'].unique()),
+    default=sorted(main_df['hr'].unique())
+)
+
+# ===================== #
+# FILTER DATA
+# ===================== #
+filtered_df = main_df[
+    (main_df['season'].isin(season_filter)) &
+    (main_df['weathersit'].isin(weather_filter)) &
+    (main_df['weekday'].isin(day_filter)) &
+    (main_df['hr'].isin(time_filter))
 ]
 
-# =======================
-# TITLE
-# =======================
-st.title('🚴‍♂ Bike Sharing Dashboard')
-st.markdown('### Analisis Penyewaan Sepeda per Jam - Capital Bikeshare Data 2011-2012')
+# ===================== #
+# HEADER
+# ===================== #
+st.title("🚴 Dashboard Bike Sharing 🚴")
+st.markdown("**Analisis Data Peminjaman Sepeda** berdasarkan musim, cuaca, hari, dan jam tertentu. Silakan gunakan filter di sidebar untuk eksplorasi lebih lanjut!")
 
-st.markdown(f"Jumlah Data: {filtered_data.shape[0]} records")
-
-# =======================
-# PERTANYAAN 1: Pengaruh Cuaca terhadap Penyewaan
-# =======================
-st.header('1. Pengaruh Cuaca terhadap Jumlah Penyewaan Sepeda')
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader('Barplot Jumlah Penyewaan per Kondisi Cuaca')
-    fig1, ax1 = plt.subplots()
-    sns.barplot(x='weathersit_label', y='cnt', data=filtered_data, palette='Blues', estimator='mean', ax=ax1)
-    ax1.set_xlabel('Kondisi Cuaca')
-    ax1.set_ylabel('Rata-rata Penyewaan')
-    st.pyplot(fig1)
-
-with col2:
-    st.subheader('Boxplot Penyewaan per Kondisi Cuaca')
-    fig2, ax2 = plt.subplots()
-    sns.boxplot(x='weathersit_label', y='cnt', data=filtered_data, palette='Pastel1', ax=ax2)
-    ax2.set_xlabel('Kondisi Cuaca')
-    ax2.set_ylabel('Jumlah Penyewaan')
-    st.pyplot(fig2)
-
-# =======================
-# PERTANYAAN 2: Waktu Terbaik dalam Sehari
-# =======================
-st.header('2. Waktu Terbaik dalam Sehari untuk Penyewaan Sepeda')
-
-hourly_avg = filtered_data.groupby('hr')['cnt'].mean().reset_index()
-pivot_heatmap = filtered_data.pivot_table(values='cnt', index='weekday', columns='hr', aggfunc='mean')
-
-col3, col4 = st.columns(2)
-
-with col3:
-    st.subheader('Lineplot Rata-rata Penyewaan Sepeda per Jam')
-    fig3, ax3 = plt.subplots()
-    sns.lineplot(x='hr', y='cnt', data=hourly_avg, marker='o', ax=ax3)
-    ax3.set_xlabel('Jam')
-    ax3.set_ylabel('Rata-rata Penyewaan')
-    ax3.set_title('Pola Penyewaan Sepeda per Jam')
-    ax3.grid(True)
-    st.pyplot(fig3)
-
-with col4:
-    st.subheader('Heatmap Penyewaan Sepeda (Hari vs Jam)')
-    fig4, ax4 = plt.subplots(figsize=(12, 5))
-    sns.heatmap(pivot_heatmap, cmap='YlGnBu', ax=ax4)
-    ax4.set_xlabel('Jam')
-    ax4.set_ylabel('Hari (0=Senin)')
-    ax4.set_title('Distribusi Penyewaan Sepeda per Hari & Jam')
-    st.pyplot(fig4)
-
-# =======================
-# PERTANYAAN 3: Pengaruh Kelembapan dan Suhu
-# =======================
-st.header('3. Pengaruh Kelembapan dan Suhu terhadap Penggunaan Sepeda')
-
-col5, col6 = st.columns(2)
-
-with col5:
-    st.subheader('Scatterplot Suhu vs Penyewaan Sepeda')
-    fig5, ax5 = plt.subplots()
-    sns.scatterplot(x='temp', y='cnt', data=filtered_data, alpha=0.6, ax=ax5)
-    sns.regplot(x='temp', y='cnt', data=filtered_data, scatter=False, color='red', ax=ax5)
-    ax5.set_xlabel('Suhu (normalized)')
-    ax5.set_ylabel('Jumlah Penyewaan')
-    ax5.set_title('Pengaruh Suhu terhadap Penyewaan Sepeda')
-    st.pyplot(fig5)
-
-with col6:
-    st.subheader('Scatterplot Kelembapan vs Penyewaan Sepeda')
-    fig6, ax6 = plt.subplots()
-    sns.scatterplot(x='hum', y='cnt', data=filtered_data, alpha=0.6, ax=ax6)
-    sns.regplot(x='hum', y='cnt', data=filtered_data, scatter=False, color='red', ax=ax6)
-    ax6.set_xlabel('Kelembapan (normalized)')
-    ax6.set_ylabel('Jumlah Penyewaan')
-    ax6.set_title('Pengaruh Kelembapan terhadap Penyewaan Sepeda')
-    st.pyplot(fig6)
-
-# =======================
-# PERTANYAAN 4: Casual vs Registered
-# =======================
-st.header('4. Perilaku Peminjaman Casual vs Registered')
-
-col7, col8 = st.columns(2)
-
-with col7:
-    st.subheader('Barplot Rata-rata Penyewaan Casual vs Registered')
-    avg_user_type = filtered_data[['casual', 'registered']].mean()
-    fig7, ax7 = plt.subplots()
-    sns.barplot(x=avg_user_type.index, y=avg_user_type.values, palette='muted', ax=ax7)
-    ax7.set_ylabel('Rata-rata Penyewaan')
-    ax7.set_title('Rata-rata Penyewaan Casual vs Registered')
-    st.pyplot(fig7)
-
-with col8:
-    st.subheader('Lineplot Tren Casual vs Registered')
-    fig8, ax8 = plt.subplots(figsize=(14,6))
-    sns.lineplot(x='dteday', y='casual', data=filtered_data, label='Casual', ax=ax8)
-    sns.lineplot(x='dteday', y='registered', data=filtered_data, label='Registered', ax=ax8)
-    ax8.set_xlabel('Tanggal')
-    ax8.set_ylabel('Jumlah Penyewaan')
-    ax8.set_title('Tren Penyewaan Casual vs Registered')
-    ax8.legend()
-    st.pyplot(fig8)
-
-# =======================
-# FOOTER
-# =======================
 st.markdown("---")
-st.caption("Dashboard by Muhammad Razi Al Kindi Nadra - DBC Coding Camp 🚀")
+
+# ===================== #
+# DATAFRAME
+# ===================== #
+with st.expander("📄 Lihat Data Mentah"):
+    st.dataframe(filtered_df)
+
+# ===================== #
+# VISUALISASI 1: Penggunaan Sepeda per Musim
+# ===================== #
+st.subheader("1️⃣ Perbandingan Penggunaan Layanan Berdasarkan Musim")
+
+fig_season = px.bar(
+    filtered_df.groupby('season')['cnt'].sum().reset_index(),
+    x='season',
+    y='cnt',
+    color='season',
+    labels={'cnt': 'Jumlah Penyewaan', 'season': 'Musim'},
+    title='Jumlah Penyewaan Sepeda Berdasarkan Musim'
+)
+st.plotly_chart(fig_season, use_container_width=True)
+
+# ===================== #
+# VISUALISASI 2: Penyewaan Sepeda Berdasarkan Tanggal & Musim
+# ===================== #
+fig_season_date = px.bar(
+    filtered_df.groupby(['season', 'dteday'])['cnt'].sum().reset_index(),
+    x='dteday',
+    y='cnt',
+    color='season',
+    labels={'cnt': 'Jumlah Penyewaan', 'dteday': 'Tanggal'},
+    title='Jumlah Penyewaan Sepeda per Tanggal & Musim'
+)
+st.plotly_chart(fig_season_date, use_container_width=True)
+
+# ===================== #
+# VISUALISASI 3: Penyewaan Sepeda Berdasarkan Jam
+# ===================== #
+st.subheader("2️⃣ Penyewaan Sepeda Berdasarkan Jam")
+
+fig_hour = px.line(
+    filtered_df.groupby('hr')['cnt'].sum().reset_index(),
+    x='hr',
+    y='cnt',
+    labels={'cnt': 'Jumlah Penyewaan', 'hr': 'Jam'},
+    title='Jumlah Penyewaan Sepeda Berdasarkan Jam'
+)
+st.plotly_chart(fig_hour, use_container_width=True)
+
+fig_rush = px.bar(
+    filtered_df.groupby('rush_hour')['cnt'].sum().reset_index(),
+    x='rush_hour',
+    y='cnt',
+    color='rush_hour',
+    labels={'cnt': 'Jumlah Penyewaan', 'rush_hour': 'Kategori Jam'},
+    title='Perbandingan Jam Sibuk dan Sepi'
+)
+st.plotly_chart(fig_rush, use_container_width=True)
+
+# ===================== #
+# VISUALISASI 4: Penyewaan Sepeda Berdasarkan Hari
+# ===================== #
+st.subheader("3️⃣ Penyewaan Sepeda Berdasarkan Hari")
+
+fig_day = px.box(
+    filtered_df,
+    x='weekday',
+    y='cnt',
+    color='weekday',
+    labels={'cnt': 'Jumlah Penyewaan', 'weekday': 'Hari'},
+    title='Perbandingan Penyewaan Sepeda per Hari'
+)
+st.plotly_chart(fig_day, use_container_width=True)
+
+fig_working = px.box(
+    filtered_df,
+    x='workingday_label',
+    y='cnt',
+    color='workingday_label',
+    labels={'cnt': 'Jumlah Penyewaan', 'workingday_label': 'Jenis Hari'},
+    title='Perbandingan Hari Kerja vs Akhir Pekan'
+)
+st.plotly_chart(fig_working, use_container_width=True)
+
+# ===================== #
+# VISUALISASI 5: Pengaruh Cuaca terhadap Penyewaan Sepeda
+# ===================== #
+st.subheader("4️⃣ Pengaruh Cuaca terhadap Penyewaan Sepeda")
+
+fig_weather_pie = px.pie(
+    filtered_df.groupby('weathersit')['cnt'].sum().reset_index(),
+    names='weathersit',
+    values='cnt',
+    title='Distribusi Penyewaan Berdasarkan Kondisi Cuaca'
+)
+st.plotly_chart(fig_weather_pie, use_container_width=True)
+
+fig_weather_month = px.bar(
+    filtered_df.groupby(['month', 'weathersit'])['cnt'].sum().reset_index(),
+    x='month',
+    y='cnt',
+    color='weathersit',
+    labels={'cnt': 'Jumlah Penyewaan', 'month': 'Bulan', 'weathersit': 'Cuaca'},
+    title='Penggunaan Sepeda Berdasarkan Cuaca per Bulan'
+)
+st.plotly_chart(fig_weather_month, use_container_width=True)
+
+# ===================== #
+# FOOTER
+# ===================== #
+st.markdown("---")
+st.caption("🚀 Dibuat oleh Razialkindi - Dicoding 2024 🚴‍♂️")
