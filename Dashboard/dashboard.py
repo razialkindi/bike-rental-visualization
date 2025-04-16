@@ -16,6 +16,8 @@ st.set_page_config(
 # Load data
 @st.cache_data
 def load_data():
+    data = pd.read_csv('./bike-rental-visualization/Dashboard/main_data.csv')
+
     # Ganti path file sesuai dengan lokasi data Anda
     orders_df = pd.read_csv('orders_dataset.csv')
     customers_df = pd.read_csv('customers_dataset.csv')
