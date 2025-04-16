@@ -1,289 +1,317 @@
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import streamlit as st
 import plotly.express as px
-import plotly.graph_objects as go
 from PIL import Image
 
 # Set page config
 st.set_page_config(
-    page_title="Bike Usage Analytics Center",
-    page_icon="📊",
-    layout="wide"
+    page_title="E-Commerce Dashboard",
+    page_icon="🛒",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # Load data
+@st.cache_data
 def load_data():
-    data = pd.read_csv('./bike-rental-visualization/Dashboard/main_data.csv')
-    # Convert date to datetime
-    data['dteday'] = pd.to_datetime(data['dteday'])
-    return data
-
-# Apply custom CSS
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        color: #1E88E5;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .section-header {
-        font-size: 1.8rem;
-        color: #333;
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 5px;
-    }
-    .metric-card {
-        background-color: #f7f7f7;
-        border-radius: 10px;
-        padding: 15px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-    }
-    .insight-text {
-        background-color: #e8f4f8;
-        border-left: 5px solid #1E88E5;
-        padding: 10px;
-        margin: 10px 0;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# Load data
-data = load_data()
-
-# Header
-st.markdown("<h1 class='main-header'>Bike Usage Analytics Center</h1>", unsafe_allow_html=True)
-
-# Overview metrics
-st.markdown("<h2 class='section-header'>Usage Overview</h2>", unsafe_allow_html=True)
-
-# Create metrics
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-    st.metric("Total Rides", f"{data['cnt'].sum():,}")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Ganti path file sesuai dengan lokasi data Anda
+    orders_df = pd.read_csv('orders_dataset.csv')
+    customers_df = pd.read_csv('customers_dataset.csv')
+    order_items_df = pd.read_csv('order_items_dataset.csv')
+    products_df = pd.read_csv('products_dataset.csv')
+    sellers_df = pd.read_csv('sellers_dataset.csv')
     
-with col2:
-    st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-    st.metric("Casual Riders", f"{data['casual'].sum():,}")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Konversi kolom tanggal
+    orders_df['order_purchase_timestamp'] = pd.to_datetime(orders_df['order_purchase_timestamp'])
+    orders_df['order_approved_at'] = pd.to_datetime(orders_df['order_approved_at'])
+    orders_df['order_delivered_carrier_date'] = pd.to_datetime(orders_df['order_delivered_carrier_date'])
+    orders_df['order_delivered_customer_date'] = pd.to_datetime(orders_df['order_delivered_customer_date'])
+    orders_df['order_estimated_delivery_date'] = pd.to_datetime(orders_df['order_estimated_delivery_date'])
     
-with col3:
-    st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-    st.metric("Registered Riders", f"{data['registered'].sum():,}")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Ekstrak tahun dan bulan
+    orders_df['year'] = orders_df['order_purchase_timestamp'].dt.year
+    orders_df['month'] = orders_df['order_purchase_timestamp'].dt.month
+    orders_df['month_year'] = orders_df['order_purchase_timestamp'].dt.strftime('%Y-%m')
     
-with col4:
-    st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-    st.metric("Average Rides per Hour", f"{data['cnt'].mean():.1f}")
-    st.markdown("</div>", unsafe_allow_html=True)
+    return orders_df, customers_df, order_items_df, products_df, sellers_df
 
-# Date filter
-st.sidebar.header("Filters")
-min_date = data['dteday'].min().date()
-max_date = data['dteday'].max().date()
-start_date, end_date = st.sidebar.date_input(
-    "Select Date Range",
-    [min_date, max_date],
-    min_value=min_date,
-    max_value=max_date
+orders_df, customers_df, order_items_df, products_df, sellers_df = load_data()
+
+# Merge data untuk analisis
+order_detail = pd.merge(
+    orders_df, 
+    order_items_df, 
+    on='order_id'
 )
 
-# Filter data based on date
-filtered_data = data[(data['dteday'].dt.date >= start_date) & (data['dteday'].dt.date <= end_date)]
+# Sidebar
+st.sidebar.title("E-Commerce Analysis")
+st.sidebar.image("https://img.freepik.com/free-vector/ecommerce-web-page-concept-illustration_114360-8204.jpg", width=200)
 
-# Weather filter
-weather_options = {1: "Clear", 2: "Mist/Cloudy", 3: "Light Rain/Snow", 4: "Heavy Rain/Snow"}
-selected_weather = st.sidebar.multiselect(
-    "Weather Condition",
-    options=list(weather_options.keys()),
-    default=list(weather_options.keys()),
-    format_func=lambda x: weather_options[x]
+# Sidebar menu
+menu = st.sidebar.radio(
+    "Menu:",
+    ["Overview", "Sales Analysis", "Customer Analysis", "Geographic Analysis", "Product Analysis"]
 )
 
-# Further filter data based on weather
-if selected_weather:
-    filtered_data = filtered_data[filtered_data['weathersit'].isin(selected_weather)]
-
-# Time analysis section
-st.markdown("<h2 class='section-header'>Time-Based Analysis</h2>", unsafe_allow_html=True)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    # Hourly distribution
-    hourly_data = filtered_data.groupby('hr')['cnt'].mean().reset_index()
+# Overview
+if menu == "Overview":
+    st.title("📊 E-Commerce Dashboard")
+    st.write("Dashboard ini menampilkan analisis data e-commerce dari dataset Brazilian E-Commerce.")
+    
+    # KPI Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Orders", f"{len(orders_df):,}")
+    
+    with col2:
+        total_revenue = order_items_df['price'].sum()
+        st.metric("Total Revenue", f"R$ {total_revenue:,.2f}")
+    
+    with col3:
+        avg_order_value = total_revenue / len(orders_df)
+        st.metric("Avg Order Value", f"R$ {avg_order_value:,.2f}")
+    
+    with col4:
+        st.metric("Total Customers", f"{len(customers_df):,}")
+    
+    # Orders per month
+    st.subheader("Orders by Month")
+    
+    # Group data by month_year and count orders
+    monthly_orders = orders_df.groupby('month_year').size().reset_index(name='order_count')
+    monthly_orders['month_year'] = pd.to_datetime(monthly_orders['month_year'])
+    monthly_orders = monthly_orders.sort_values('month_year')
+    
+    # Plot
     fig = px.line(
-        hourly_data, 
-        x='hr', 
-        y='cnt',
-        title='Average Hourly Bike Usage',
-        labels={'hr': 'Hour of Day', 'cnt': 'Average Number of Bikes'},
-        markers=True
+        monthly_orders, 
+        x='month_year', 
+        y='order_count',
+        title='Number of Orders Over Time',
+        labels={'month_year': 'Month', 'order_count': 'Number of Orders'}
     )
-    fig.update_layout(height=400)
     st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown("<div class='insight-text'>Peak usage occurs during commuting hours (7-9 AM and 5-7 PM), indicating bikes are primarily used for work commutes.</div>", unsafe_allow_html=True)
-
-with col2:
-    # Weekday analysis
-    weekday_data = filtered_data.groupby('weekday')['cnt'].mean().reset_index()
-    weekday_data['weekday_name'] = weekday_data['weekday'].map({
-        0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday',
-        4: 'Thursday', 5: 'Friday', 6: 'Saturday'
-    })
-    fig = px.bar(
-        weekday_data, 
-        x='weekday_name', 
-        y='cnt',
-        title='Average Bike Usage by Day of Week',
-        labels={'weekday_name': 'Day of Week', 'cnt': 'Average Number of Bikes'},
-        color='cnt'
-    )
-    fig.update_layout(height=400)
-    st.plotly_chart(fig, use_container_width=True)
-
-# Environmental factors
-st.markdown("<h2 class='section-header'>Environmental Impact Analysis</h2>", unsafe_allow_html=True)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    # Temperature vs usage
-    fig = px.scatter(
-        filtered_data, 
-        x='temp', 
-        y='cnt',
-        title='Temperature vs. Bike Usage',
-        labels={'temp': 'Normalized Temperature', 'cnt': 'Number of Bikes'},
-        color='season',
-        size='cnt',
-        hover_data=['dteday', 'hr'],
-        color_discrete_map={1: '#4575b4', 2: '#74add1', 3: '#f46d43', 4: '#d73027'}
-    )
-    fig.update_layout(height=400)
-    st.plotly_chart(fig, use_container_width=True)
+    # Order status distribution
+    st.subheader("Order Status Distribution")
     
-    st.markdown("<div class='insight-text'>Bike usage shows a positive correlation with temperature, with higher temperatures generally resulting in increased ridership.</div>", unsafe_allow_html=True)
-
-with col2:
-    # Humidity vs usage
-    fig = px.scatter(
-        filtered_data, 
-        x='hum', 
-        y='cnt',
-        title='Humidity vs. Bike Usage',
-        labels={'hum': 'Normalized Humidity', 'cnt': 'Number of Bikes'},
-        color='season',
-        size='windspeed',
-        hover_data=['dteday', 'hr'],
-        color_discrete_map={1: '#4575b4', 2: '#74add1', 3: '#f46d43', 4: '#d73027'}
+    status_count = orders_df['order_status'].value_counts().reset_index()
+    status_count.columns = ['status', 'count']
+    
+    fig = px.pie(
+        status_count, 
+        values='count', 
+        names='status',
+        title='Order Status Distribution',
+        hole=0.4
     )
-    fig.update_layout(height=400)
     st.plotly_chart(fig, use_container_width=True)
 
-# User segmentation
-st.markdown("<h2 class='section-header'>User Segmentation</h2>", unsafe_allow_html=True)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    # Casual vs Registered by hour
-    hourly_user_data = filtered_data.groupby('hr')[['casual', 'registered']].mean().reset_index()
-    hourly_user_data_melted = pd.melt(
-        hourly_user_data, 
-        id_vars=['hr'], 
-        value_vars=['casual', 'registered'],
-        var_name='user_type', 
-        value_name='count'
-    )
+# Sales Analysis
+elif menu == "Sales Analysis":
+    st.title("💰 Sales Analysis")
     
+    # Sales trend over time
+    st.subheader("Sales Trend Over Time")
+    
+    # Merge orders with order items to get sales data
+    sales_data = pd.merge(orders_df, order_items_df, on='order_id')
+    
+    # Group by month_year and sum the price
+    monthly_sales = sales_data.groupby('month_year')['price'].sum().reset_index()
+    monthly_sales['month_year'] = pd.to_datetime(monthly_sales['month_year'])
+    monthly_sales = monthly_sales.sort_values('month_year')
+    
+    # Plot
     fig = px.line(
-        hourly_user_data_melted, 
-        x='hr', 
-        y='count', 
-        color='user_type',
-        title='Casual vs. Registered Users by Hour',
-        labels={'hr': 'Hour of Day', 'count': 'Average Number of Bikes', 'user_type': 'User Type'},
-        markers=True
+        monthly_sales, 
+        x='month_year', 
+        y='price',
+        title='Sales Over Time',
+        labels={'month_year': 'Month', 'price': 'Sales (R$)'}
     )
-    fig.update_layout(height=400)
     st.plotly_chart(fig, use_container_width=True)
-
-with col2:
-    # Rush hour analysis
-    rush_hour_data = filtered_data.groupby('rush_hour')[['casual', 'registered', 'cnt']].mean().reset_index()
     
+    # Sales by payment type
+    st.subheader("Sales by Payment Type")
+    
+    # Get payment info
+    payment_data = pd.merge(
+        orders_df[['order_id', 'order_purchase_timestamp']], 
+        order_items_df[['order_id', 'price']], 
+        on='order_id'
+    )
+    
+    # Group by payment type and sum the price
+    payment_sales = payment_data.groupby('payment_type')['price'].sum().reset_index()
+    
+    # Plot
     fig = px.bar(
-        rush_hour_data, 
-        x='rush_hour', 
-        y=['casual', 'registered'],
-        title='User Types During Rush vs. Non-Rush Hours',
-        labels={'rush_hour': 'Rush Hour Status', 'value': 'Average Number of Bikes', 'variable': 'User Type'},
-        barmode='group'
+        payment_sales, 
+        x='payment_type', 
+        y='price',
+        title='Sales by Payment Type',
+        labels={'payment_type': 'Payment Type', 'price': 'Sales (R$)'}
     )
-    fig.update_layout(height=400)
+    st.plotly_chart(fig, use_container_width=True)
+
+# Customer Analysis
+elif menu == "Customer Analysis":
+    st.title("👥 Customer Analysis")
+    
+    # Customer distribution by state
+    st.subheader("Customer Distribution by State")
+    
+    state_counts = customers_df['customer_state'].value_counts().reset_index()
+    state_counts.columns = ['state', 'count']
+    
+    # Plot
+    fig = px.bar(
+        state_counts.head(10), 
+        x='state', 
+        y='count',
+        title='Top 10 States by Customer Count',
+        labels={'state': 'State', 'count': 'Number of Customers'}
+    )
     st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown("<div class='insight-text'>Registered users dominate during rush hours, suggesting commuters rely on bike sharing for daily transportation to work.</div>", unsafe_allow_html=True)
+    # Customer repeat purchase analysis
+    st.subheader("Customer Repeat Purchase Analysis")
+    
+    # Count orders per customer
+    customer_orders = orders_df.groupby('customer_id').size().reset_index(name='order_count')
+    
+    # Count customers with different numbers of orders
+    purchase_counts = customer_orders['order_count'].value_counts().sort_index().reset_index()
+    purchase_counts.columns = ['number_of_orders', 'number_of_customers']
+    
+    # Plot
+    fig = px.bar(
+        purchase_counts, 
+        x='number_of_orders', 
+        y='number_of_customers',
+        title='Number of Customers by Order Count',
+        labels={'number_of_orders': 'Number of Orders', 'number_of_customers': 'Number of Customers'}
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# Weather impact
-st.markdown("<h2 class='section-header'>Weather Impact</h2>", unsafe_allow_html=True)
+# Geographic Analysis
+elif menu == "Geographic Analysis":
+    st.title("🗺️ Geographic Analysis")
+    
+    # Sales by state
+    st.subheader("Sales by State")
+    
+    # Merge data to get sales by state
+    geo_sales = pd.merge(
+        orders_df, 
+        order_items_df, 
+        on='order_id'
+    )
+    geo_sales = pd.merge(
+        geo_sales, 
+        customers_df[['customer_id', 'customer_state']], 
+        on='customer_id'
+    )
+    
+    # Group by state and sum the price
+    state_sales = geo_sales.groupby('customer_state')['price'].sum().reset_index()
+    
+    # Plot
+    fig = px.choropleth(
+        state_sales,
+        locations='customer_state', 
+        locationmode='ISO-3166-2:BR',
+        color='price',
+        scope='south america',
+        title='Sales by State',
+        labels={'price': 'Sales (R$)', 'customer_state': 'State'}
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Delivery time by state
+    st.subheader("Average Delivery Time by State")
+    
+    # Calculate delivery time
+    delivery_df = orders_df.copy()
+    delivery_df['delivery_time'] = (delivery_df['order_delivered_customer_date'] - 
+                                   delivery_df['order_purchase_timestamp']).dt.days
+    
+    # Merge with customer data
+    delivery_by_state = pd.merge(
+        delivery_df[['customer_id', 'delivery_time']], 
+        customers_df[['customer_id', 'customer_state']], 
+        on='customer_id'
+    )
+    
+    # Calculate average delivery time by state
+    avg_delivery_time = delivery_by_state.groupby('customer_state')['delivery_time'].mean().reset_index()
+    
+    # Plot
+    fig = px.bar(
+        avg_delivery_time.sort_values('delivery_time', ascending=False), 
+        x='customer_state', 
+        y='delivery_time',
+        title='Average Delivery Time by State (Days)',
+        labels={'customer_state': 'State', 'delivery_time': 'Avg. Delivery Time (Days)'}
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-weather_impact = filtered_data.groupby('weathersit')[['casual', 'registered', 'cnt']].mean().reset_index()
-weather_impact['weathersit_name'] = weather_impact['weathersit'].map(weather_options)
-
-fig = px.bar(
-    weather_impact, 
-    x='weathersit_name', 
-    y=['casual', 'registered'],
-    title='Weather Impact on Different User Types',
-    labels={'weathersit_name': 'Weather Condition', 'value': 'Average Number of Bikes', 'variable': 'User Type'},
-    barmode='group',
-    color_discrete_map={'casual': '#1E88E5', 'registered': '#FFC107'}
-)
-fig.update_layout(height=500)
-st.plotly_chart(fig, use_container_width=True)
-
-st.markdown("<div class='insight-text'>Both user types show decreased activity during adverse weather conditions, with casual riders showing more sensitivity to weather changes than registered users.</div>", unsafe_allow_html=True)
-
-# Seasonal trends
-st.markdown("<h2 class='section-header'>Seasonal Analysis</h2>", unsafe_allow_html=True)
-
-season_map = {1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall"}
-seasonal_data = filtered_data.groupby('season')[['casual', 'registered', 'cnt']].mean().reset_index()
-seasonal_data['season_name'] = seasonal_data['season'].map(season_map)
-
-fig = px.line(
-    seasonal_data, 
-    x='season_name', 
-    y=['casual', 'registered', 'cnt'],
-    title='Seasonal Bike Usage Patterns',
-    labels={'season_name': 'Season', 'value': 'Average Number of Bikes', 'variable': 'User Type'},
-    markers=True
-)
-fig.update_layout(height=500)
-st.plotly_chart(fig, use_container_width=True)
-
-# Conclusion
-st.markdown("<h2 class='section-header'>Key Insights</h2>", unsafe_allow_html=True)
-st.markdown("""
-<div class='insight-text'>
-<ul>
-    <li>Bike usage peaks during commuting hours (7-9 AM and 5-7 PM)</li>
-    <li>Registered users form the majority of riders, especially during weekdays</li>
-    <li>Weather significantly impacts ridership, with clear weather showing highest usage</li>
-    <li>Temperature has a strong positive correlation with bike usage</li>
-    <li>Seasonal trends show highest usage during summer months</li>
-</ul>
-</div>
-""", unsafe_allow_html=True)
+# Product Analysis
+elif menu == "Product Analysis":
+    st.title("📦 Product Analysis")
+    
+    # Top product categories
+    st.subheader("Top Product Categories")
+    
+    # Merge data to get product categories
+    product_data = pd.merge(
+        order_items_df, 
+        products_df, 
+        on='product_id'
+    )
+    
+    # Group by category and count
+    category_counts = product_data['product_category_name'].value_counts().reset_index()
+    category_counts.columns = ['category', 'count']
+    
+    # Plot
+    fig = px.bar(
+        category_counts.head(10), 
+        x='count', 
+        y='category',
+        title='Top 10 Product Categories',
+        labels={'count': 'Number of Orders', 'category': 'Category'},
+        orientation='h'
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Price distribution by category
+    st.subheader("Price Distribution by Category")
+    
+    # Select top 5 categories for better visualization
+    top_categories = category_counts.head(5)['category'].tolist()
+    filtered_data = product_data[product_data['product_category_name'].isin(top_categories)]
+    
+    # Plot
+    fig = px.box(
+        filtered_data, 
+        x='product_category_name', 
+        y='price',
+        title='Price Distribution for Top 5 Categories',
+        labels={'product_category_name': 'Category', 'price': 'Price (R$)'}
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 # Footer
-st.markdown("---")
-st.markdown("Bike Usage Analytics Center | Data Analysis Project | 2023")
+st.sidebar.markdown("---")
+st.sidebar.info(
+    """
+    **E-Commerce Analysis Dashboard**  
+    Data Source: Brazilian E-Commerce Public Dataset by Olist
+    """
+)
