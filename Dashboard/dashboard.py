@@ -432,4 +432,4 @@ with tab4:
 
 # Footer
 st.markdown("---")
-st.markdown("Dashboard dibuat oleh [Input Nama] untuk Proyek Analisis Data")
+st.markdown("Dashboard dibuat oleh Muhammad Razi Al Kindi Nadra untuk Proyek Analisis Data")
