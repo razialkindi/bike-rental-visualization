@@ -430,6 +430,3 @@ with tab4:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# Footer
-st.markdown("---")
-st.markdown("Dashboard dibuat oleh Muhammad Razi Al Kindi Nadra untuk Proyek Analisis Data")
