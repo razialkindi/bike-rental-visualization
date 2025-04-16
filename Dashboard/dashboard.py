@@ -19,8 +19,8 @@ st.set_page_config(
 @st.cache_data
 def load_data():
     # Load dataset
-    day_df = pd.read_csv('day.csv')
-    hour_df = pd.read_csv('hour.csv')
+    day_df = pd.read_csv('Data/day.csv')
+    hour_df = pd.read_csv('Data/hour.csv')
     
     # Convert 'dteday' to datetime
     day_df['dteday'] = pd.to_datetime(day_df['dteday'])
